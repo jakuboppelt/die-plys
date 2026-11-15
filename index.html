@@ -55,6 +55,25 @@ h1 span { color: var(--p1); }
 .swb:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
 .ctrl .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; font-size: 13px; }
 .ctrl .row span { min-width: 4.2em; text-align: right; color: #6b5d45; }
+.keysbox { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.cpubox { display: none; font-size: 13px; color: #6b5d45; text-align: center; min-height: 54px; align-items: center; }
+.ctrl.is-cpu .keysbox { display: none; }
+.ctrl.is-cpu .cpubox { display: flex; }
+.mode, .seg { display: inline-flex; border: 3px solid var(--ink); border-radius: 10px; overflow: hidden; box-shadow: 2px 2px 0 var(--ink); }
+.mode button, .seg button { font: 400 14px/1 var(--display); letter-spacing: .5px; color: var(--ink); background: #fff; border: 0; padding: 7px 12px 5px; cursor: pointer; }
+.mode button + button, .seg button + button { border-left: 3px solid var(--ink); }
+.mode button.on { background: var(--c); }
+.seg button.on { background: var(--ink); color: var(--paper); }
+.mode button:focus-visible, .seg button:focus-visible { outline: 3px solid var(--p3); outline-offset: -5px; }
+.diff { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; font: 400 16px/1 var(--display); letter-spacing: .5px; }
+.diff.off { opacity: .4; }
+.seg button:disabled { cursor: default; }
+.card { position: relative; }
+.badge { display: none; position: absolute; top: -9px; left: -9px; font: 700 10px/1 var(--body); letter-spacing: .5px; background: var(--ink); color: var(--paper); border: 2px solid var(--paper); border-radius: 5px; padding: 3px 5px; }
+.card.is-cpu .badge { display: block; }
+.pk .kcpu { display: none; color: #6b5d45; }
+.pk.is-cpu .k { display: none; }
+.pk.is-cpu .kcpu { display: inline; }
 .rules { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 15px; line-height: 1.45; max-width: 68ch; }
 .actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
 .btn { font: 400 30px/1 var(--display); letter-spacing: 1px; background: var(--p1); color: var(--ink);
@@ -114,10 +133,12 @@ kbd { font: 600 12px var(--body); background: var(--paper); color: var(--ink); b
       <h2>Jak se hraje</h2>
       <p class="hint" style="margin-top:-6px">Klikni na jméno a přepiš ho. Barvu, kterou už má někdo jiný, vybrat nejde.</p>
       <div class="ctrls" id="ctrls"></div>
+      <div class="diff" id="diffRow"><span>Obtížnost počítače</span><div class="seg" id="diffSeg" role="group" aria-label="Obtížnost počítače"></div></div>
       <ul class="rules">
         <li>Každý má v zásobníku <b>6 kuliček</b>. Když je vystřílí, zásobník se <b>3 sekundy</b> nabíjí. Kolik zbývá, vidíš nad zajícem i nahoře v tabulce.</li>
         <li>Zásah = <b>1 bod</b>. Trefený hráč se za chvilku objeví jinde a chvíli bliká. Dokud bliká, nedá se trefit.</li>
         <li>Hra trvá <b>2 minuty</b>. Vyhrává ten, kdo má nejvíc zásahů.</li>
+        <li>Kteréhokoli zajíce může ovládat <b>počítač</b>. Přepni ho na kartě a vyber obtížnost.</li>
       </ul>
       <div class="actions"><button class="btn" id="start">Start</button></div>
       <p class="hint">Hra se přepne na celou obrazovku. Klávesa <kbd>Esc</kbd> hru zastaví a otevře nabídku.</p>
@@ -397,9 +418,15 @@ try {
     const p = players[i]; if (!p || !s) return;
     if (PALETTE[s.ci] && !saved.some((o, j) => j < i && o && o.ci === s.ci)) p.ci = s.ci;
     if (typeof s.name === 'string' && s.name.trim()) { p.name = s.name.trim().slice(0, 16); p.custom = true; }
+    if (typeof s.cpu === 'boolean') p.cpu = s.cpu;
   });
 } catch (e) {}
-function saveSetup() { try { localStorage.setItem('dieplys-setup', JSON.stringify(players.map(p => ({ ci: p.ci, name: p.custom ? p.name : '' })))); } catch (e) {} }
+function saveSetup() {
+  try {
+    localStorage.setItem('dieplys-setup', JSON.stringify(players.map(p => ({ ci: p.ci, name: p.custom ? p.name : '', cpu: !!p.cpu }))));
+    localStorage.setItem('dieplys-diff', difficulty);
+  } catch (e) {}
+}
 players.forEach(p => {
   p.paint = PALETTE[p.ci].c; if (!p.custom) p.name = defaultName(p);
   p.sprite = makeSprite(p.species, p.paint); p.bullet = makeBullet(p.paint);
@@ -498,7 +525,7 @@ function spawn(p) {
 function reset() {
   bullets = []; fx = []; puffs = []; bits = []; bubbles = []; timeLeft = MATCH; goT = 0;
   copyLayer(ground, groundBase); copyLayer(obst, obstBase);
-  players.forEach(p => { p.score = 0; p.shots = 0; p.deaths = 0; p.dx = 1; p.dy = 0; p.ang = 0; p.alive = false; });
+  players.forEach(p => { p.ai = null; p.vx = 0; p.vy = 0; p.score = 0; p.shots = 0; p.deaths = 0; p.dx = 1; p.dy = 0; p.ang = 0; p.alive = false; });
   players.forEach(p => { spawn(p); p.ang = Math.atan2(H/2 - p.y, W/2 - p.x); p.dx = Math.cos(p.ang); p.dy = Math.sin(p.ang); });
   updateHud(true);
 }
@@ -523,13 +550,18 @@ function buildHud() {
     c.append(avatar(p, 64));
     c.insertAdjacentHTML('beforeend', `<input class="nmin" id="name-${idx}" maxlength="16" spellcheck="false" autocomplete="off" aria-label="Jméno hráče ${idx + 1}">
       <div class="sw" role="group" aria-label="Barva hráče ${idx + 1}">${PALETTE.map((s, i) => `<button type="button" class="swb" data-ci="${i}" style="--s:${s.c}" aria-label="${s.n}" title="${s.n}"></button>`).join('')}</div>
-      <div class="row"><span>pohyb</span>${kbds(p.labels.move)}</div><div class="row"><span>střelba</span>${kbds(p.labels.fire)}</div>`);
+      <div class="mode" role="group" aria-label="Kdo ovládá hráče ${idx + 1}"><button type="button" data-cpu="0">Hráč</button><button type="button" data-cpu="1">Počítač</button></div>
+      <div class="keysbox"><div class="row"><span>pohyb</span>${kbds(p.labels.move)}</div><div class="row"><span>střelba</span>${kbds(p.labels.fire)}</div></div>
+      <div class="cpubox">Tohohle zajíce ovládá počítač.</div>`);
     ctrls.append(c);
     const pk = document.createElement('div'); pk.className = 'pk';
-    pk.innerHTML = `<span class="who"><i></i><span></span></span><span class="k">${kbds(p.labels.move)} + ${kbds(p.labels.fire)}</span>`;
+    pk.innerHTML = `<span class="who"><i></i><span></span></span><span class="k">${kbds(p.labels.move)} + ${kbds(p.labels.fire)}</span><span class="kcpu">počítač</span>`;
     document.getElementById('pkeys').append(pk);
+    d.insertAdjacentHTML('beforeend', '<span class="badge">PC</span>');
     p.el = { card: d, ctrl: c, pk, sc: d.querySelector('.sc'), dots: [...d.querySelectorAll('.ammo i')], rl: d.querySelector('.rl'), key: '',
-      names: [d.querySelector('.nm'), pk.querySelector('.who span')], input: c.querySelector('.nmin'), swb: [...c.querySelectorAll('.swb')] };
+      names: [d.querySelector('.nm'), pk.querySelector('.who span')], input: c.querySelector('.nmin'), swb: [...c.querySelectorAll('.swb')],
+      mode: [...c.querySelectorAll('.mode button')] };
+    p.el.mode.forEach(b => b.addEventListener('click', () => { p.cpu = b.dataset.cpu === '1'; refreshMode(); saveSetup(); }));
     p.el.input.value = p.name;
     p.el.input.addEventListener('input', () => {
       const v = p.el.input.value.trim(); p.custom = v !== ''; p.name = v || defaultName(p);
@@ -545,7 +577,18 @@ function buildHud() {
     }));
     refreshLook(p);
   });
-  refreshNames(); refreshSwatches();
+  document.getElementById('diffSeg').innerHTML = Object.entries(DIFF).map(([k, v]) => `<button type="button" data-d="${k}">${v.label}</button>`).join('');
+  document.querySelectorAll('#diffSeg button').forEach(b => b.addEventListener('click', () => { difficulty = b.dataset.d; refreshMode(); saveSetup(); }));
+  refreshNames(); refreshSwatches(); refreshMode();
+}
+function refreshMode() {
+  for (const p of players) {
+    p.el.mode.forEach(b => { const on = (b.dataset.cpu === '1') === !!p.cpu; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    for (const el of [p.el.ctrl, p.el.card, p.el.pk]) el.classList.toggle('is-cpu', !!p.cpu);
+  }
+  const any = players.some(p => p.cpu);
+  document.getElementById('diffRow').classList.toggle('off', !any);
+  document.querySelectorAll('#diffSeg button').forEach(b => { const on = b.dataset.d === difficulty; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); b.disabled = !any; });
 }
 function refreshLook(p) {
   for (const el of [p.el.card, p.el.ctrl, p.el.pk]) el.style.setProperty('--c', p.paint);
@@ -586,7 +629,7 @@ function showResults() {
     const r = document.createElement('div'); r.className = 'rrow' + (place === 1 ? ' top' : ''); r.style.setProperty('--c', p.paint);
     r.insertAdjacentHTML('beforeend', `<span class="pl">${place}.</span>`);
     r.append(avatar(p, 52));
-    r.insertAdjacentHTML('beforeend', `<div style="min-width:0"><div class="nm">${esc(p.name)}</div><div class="st">výstřelů ${p.shots} · přesnost ${acc} % · trefen ${p.deaths}×</div></div><div class="pts">${p.score}<small>${p.score === 1 ? 'zásah' : p.score >= 2 && p.score <= 4 ? 'zásahy' : 'zásahů'}</small></div>`);
+    r.insertAdjacentHTML('beforeend', `<div style="min-width:0"><div class="nm">${esc(p.name)}</div><div class="st">${p.cpu ? `počítač (${DIFF[difficulty].label.toLowerCase()}) · ` : ''}výstřelů ${p.shots} · přesnost ${acc} % · trefen ${p.deaths}×</div></div><div class="pts">${p.score}<small>${p.score === 1 ? 'zásah' : p.score >= 2 && p.score <= 4 ? 'zásahy' : 'zásahů'}</small></div>`);
     el.append(r);
   });
   const tie = list.length > 1 && list[0].score === list[1].score;
@@ -650,6 +693,133 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => pressed.delete(e.code));
 addEventListener('blur', () => pressed.clear());
 
+/* ---------- computer player ---------- */
+// react = how often it re-thinks (s), aimErr = random aim spread (rad), lead = how much it predicts movement,
+// dodge = chance to sidestep an incoming ball, fireGap = extra pause between shots, turn = how fast it turns
+const DIFF = {
+  easy:   { label: 'Lehká',   react: .6,  aimErr: .32, lead: 0,  dodge: 0,   speed: .72, fireGap: .8,  turn: 6,  range: 380, retreat: false, smart: false },
+  medium: { label: 'Střední', react: .32, aimErr: .17, lead: .5, dodge: .3,  speed: .88, fireGap: .35, turn: 10, range: 560, retreat: true,  smart: true },
+  hard:   { label: 'Těžká',   react: .1,  aimErr: .04, lead: 1,  dodge: .9,  speed: 1,   fireGap: 0,   turn: 20, range: 900, retreat: true,  smart: true },
+};
+let difficulty = 'medium';
+try { const d = localStorage.getItem('dieplys-diff'); if (DIFF[d]) difficulty = d; } catch (e) {}
+
+const CELL = 24, GW = Math.ceil(W / CELL), GH = Math.ceil(H / CELL);
+const walk = new Uint8Array(GW * GH);
+for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++)
+  walk[gy * GW + gx] = hitsWall(gx * CELL + CELL / 2, gy * CELL + CELL / 2, R + 1) ? 0 : 1;
+const cellOf = (x, y) => Math.min(GH - 1, Math.max(0, y / CELL | 0)) * GW + Math.min(GW - 1, Math.max(0, x / CELL | 0));
+const NB = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+function flowTo(x, y) {
+  const dist = new Int16Array(GW * GH).fill(-1), q = new Int16Array(GW * GH);
+  let start = cellOf(x, y), h = 0, t = 0;
+  if (!walk[start]) { // target hugs a wall: start from the nearest walkable cell
+    let best = -1, bd = 1e9;
+    for (let i = 0; i < walk.length; i++) if (walk[i]) { const d = Math.hypot((i % GW) * CELL - x, (i / GW | 0) * CELL - y); if (d < bd) { bd = d; best = i; } }
+    start = best;
+  }
+  dist[start] = 0; q[t++] = start;
+  while (h < t) {
+    const c = q[h++], cx = c % GW, cy = c / GW | 0;
+    for (const [dx, dy] of NB) {
+      const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) continue;
+      const n = ny * GW + nx; if (!walk[n] || dist[n] >= 0) continue;
+      if (dx && dy && (!walk[cy * GW + nx] || !walk[ny * GW + cx])) continue;
+      dist[n] = dist[c] + 1; q[t++] = n;
+    }
+  }
+  return dist;
+}
+function hasLOS(ax, ay, bx, by) {
+  const d = Math.hypot(bx - ax, by - ay), n = Math.ceil(d / 9);
+  for (let i = 1; i < n; i++) {
+    const w = hitsWall(ax + (bx - ax) * i / n, ay + (by - ay) * i / n, 5);
+    if (w && w !== 'border') return false;
+  }
+  return true;
+}
+function keyInput(p) {
+  return {
+    mx: (pressed.has(p.keys.right)?1:0) - (pressed.has(p.keys.left)?1:0),
+    my: (pressed.has(p.keys.down)?1:0) - (pressed.has(p.keys.up)?1:0),
+    fire: p.keys.fire.some(k => pressed.has(k)), face: null,
+  };
+}
+function aiInput(p, dt) {
+  const D = DIFF[difficulty];
+  const ai = p.ai || (p.ai = { think: 0, flowT: 0, flow: null, strafe: 1, strafeT: 0, fireWait: 0, stuck: 0, unstickT: 0, ux: 0, uy: 0, dodgeT: 0, ddx: 0, ddy: 0 });
+  ai.think -= dt; ai.flowT -= dt; ai.strafeT -= dt; ai.fireWait -= dt; ai.unstickT -= dt; ai.dodgeT -= dt;
+
+  if (ai.think <= 0) {
+    ai.think = D.react * (.7 + Math.random() * .6);
+    let best = null, bd = 1e9;
+    for (const o of players) {
+      if (o === p || !o.alive) continue;
+      let d = Math.hypot(o.x - p.x, o.y - p.y);
+      if (D.smart && o.shield > 0) d += 400;           // don't waste balls on a blinking target
+      if (o === ai.target) d -= 60;                      // a little stickiness, no target flip-flopping
+      if (d < bd) { bd = d; best = o; }
+    }
+    ai.target = best;
+    if (best) {
+      const dist = Math.hypot(best.x - p.x, best.y - p.y), t = dist / BSPEED;
+      const tx = best.x + (best.vx || 0) * t * D.lead, ty = best.y + (best.vy || 0) * t * D.lead;
+      ai.los = hasLOS(p.x, p.y, best.x, best.y) && dist < D.range;
+      const dd = Math.max(40, Math.hypot(tx - p.x, ty - p.y));
+      // the gun sits on the right side, so turn slightly left to put the ball on target
+      ai.aim = Math.atan2(ty - p.y, tx - p.x) - Math.asin(Math.min(1, 10 * S / dd)) + (Math.random() - .5) * 2 * D.aimErr;
+      ai.dist = dist;
+    } else ai.los = false;
+    // incoming paintball? step aside
+    if (D.dodge && Math.random() < D.dodge) {
+      for (const b of bullets) {
+        if (b.owner === p) continue;
+        const rx = p.x - b.x, ry = p.y - b.y, v = Math.hypot(b.vx, b.vy), along = (rx * b.vx + ry * b.vy) / v;
+        if (along < 0 || along > 200) continue;
+        const side = (rx * b.vy - ry * b.vx) / v;
+        if (Math.abs(side) < R + 12) { const s = side >= 0 ? 1 : -1; ai.ddx = b.vy / v * s; ai.ddy = -b.vx / v * s; ai.dodgeT = .28; break; }
+      }
+    }
+  }
+  const tg = ai.target;
+  if (!tg) return { mx: 0, my: 0, fire: false, face: null };
+  if (ai.strafeT <= 0) { ai.strafeT = .6 + Math.random() * .9; ai.strafe = Math.random() < .5 ? -1 : 1; }
+
+  let mx = 0, my = 0;
+  const ex = tg.x - p.x, ey = tg.y - p.y, el = Math.hypot(ex, ey) || 1;
+  if (ai.dodgeT > 0) { mx = ai.ddx; my = ai.ddy; }
+  else if (ai.unstickT > 0) { mx = ai.ux; my = ai.uy; }
+  else if (p.reload > 0 && D.retreat && ai.los) { mx = -ex / el + (-ey / el) * ai.strafe * .6; my = -ey / el + (ex / el) * ai.strafe * .6; }
+  else if (ai.los) {
+    const want = el > 260 ? 1 : el < 150 ? -1 : 0;   // keep a comfortable shooting distance
+    mx = ex / el * want - ey / el * ai.strafe * .8; my = ey / el * want + ex / el * ai.strafe * .8;
+  } else {
+    if (ai.flowT <= 0 || !ai.flow) { ai.flow = flowTo(tg.x, tg.y); ai.flowT = .35; }
+    const c = cellOf(p.x, p.y), cx = c % GW, cy = c / GW | 0, here = ai.flow[c];
+    let bestN = -1, bv = here >= 0 ? here : 1e9;
+    for (const [dx, dy] of NB) {
+      const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) continue;
+      const n = ny * GW + nx, v = ai.flow[n];
+      if (v < 0 || !walk[n] || (dx && dy && (!walk[cy * GW + nx] || !walk[ny * GW + cx]))) continue;
+      if (v < bv) { bv = v; bestN = n; }
+    }
+    if (bestN >= 0) { mx = (bestN % GW) * CELL + CELL / 2 - p.x; my = (bestN / GW | 0) * CELL + CELL / 2 - p.y; }
+    else { mx = ex; my = ey; }
+  }
+  // stuck against something? wiggle out in a random direction
+  if ((mx || my) && Math.hypot(p.vx || 0, p.vy || 0) < 15) {
+    if ((ai.stuck += dt) > .45) { const a = Math.random() * TAU; ai.ux = Math.cos(a); ai.uy = Math.sin(a); ai.unstickT = .35; ai.stuck = 0; }
+  } else ai.stuck = 0;
+
+  let fire = false, face = null;
+  if (ai.los && p.reload <= 0) {
+    face = ai.aim;
+    const off = Math.abs((ai.aim - p.ang + Math.PI * 3) % TAU - Math.PI);
+    fire = off < .1 && ai.fireWait <= 0 && !(D.smart && tg.shield > .15);
+  }
+  return { mx, my, fire, face };
+}
+
 /* ---------- update ---------- */
 function update(dt) {
   if (phase === 'paused') return;
@@ -667,19 +837,22 @@ function update(dt) {
     if (!p.alive) { p.dead += dt; if (p.dead > RESPAWN) spawn(p); continue; }
     p.cd -= dt; p.shield -= dt; p.pop = Math.min(1, p.pop + dt * 5);
     if (p.reload > 0 && (p.reload -= dt) <= 0) { p.reload = 0; p.ammo = AMMO; }
-    let mx = (pressed.has(p.keys.right)?1:0) - (pressed.has(p.keys.left)?1:0);
-    let my = (pressed.has(p.keys.down)?1:0) - (pressed.has(p.keys.up)?1:0);
+    const inp = p.cpu ? aiInput(p, dt) : keyInput(p);
+    let mx = inp.mx, my = inp.my;
+    const ox = p.x, oy = p.y, spd = SPEED * (p.cpu ? DIFF[difficulty].speed : 1);
     if (mx || my) {
       const len = Math.hypot(mx, my); mx /= len; my /= len; p.dx = mx; p.dy = my;
-      const nx = p.x + mx*SPEED*dt, ny = p.y + my*SPEED*dt;
+      const nx = p.x + mx*spd*dt, ny = p.y + my*spd*dt;
       if (!hitsWall(nx, p.y, R)) p.x = nx;
       if (!hitsWall(p.x, ny, R)) p.y = ny;
       p.walk += dt * 14;
     } else p.walk = 0;
-    const target = Math.atan2(p.dy, p.dx);
+    p.vx = (p.x - ox) / dt; p.vy = (p.y - oy) / dt;
+    const target = inp.face != null ? inp.face : Math.atan2(p.dy, p.dx);
     let diff = (target - p.ang + Math.PI * 3) % TAU - Math.PI;
-    p.ang += diff * Math.min(1, dt * 20);
-    if (p.keys.fire.some(k => pressed.has(k)) && p.cd <= 0 && p.ammo > 0) {
+    p.ang += diff * Math.min(1, dt * (p.cpu ? DIFF[difficulty].turn : 20));
+    if (inp.fire && p.cd <= 0 && p.ammo > 0) {
+      if (p.cpu) p.ai.fireWait = DIFF[difficulty].fireGap * (.7 + Math.random() * .6);
       p.cd = COOLDOWN; p.ammo--; p.shots++;
       if (p.ammo === 0) p.reload = RELOAD;
       const c = Math.cos(p.ang), s = Math.sin(p.ang), mx0 = 33 * S, my0 = 10 * S;
