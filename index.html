@@ -92,7 +92,21 @@ h1 span { color: var(--p1); }
 .pk .who { font: 400 15px/1 var(--display); letter-spacing: .5px; display: flex; gap: 6px; align-items: center; }
 .pk .who i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink); background: var(--c); }
 .pk .k { display: flex; gap: 3px; align-items: center; }
+.kb { font: 600 12px var(--body); background: var(--paper); color: var(--ink); border: 2px solid var(--ink); border-radius: 4px; padding: 1px 6px;
+  box-shadow: 1px 1px 0 var(--ink); cursor: pointer; min-width: 24px; }
+.kb:hover { background: #fff; transform: translateY(-1px); }
+.kb.listen { background: var(--c); animation: blinkk .6s steps(2) infinite; }
+@keyframes blinkk { 50% { background: #fff; } }
+.kb:focus-visible { outline: 3px solid var(--p3); outline-offset: 2px; }
+.keymsg { margin: 0; min-height: 1.3em; text-align: center; font-weight: 600; color: #b3261e; font-size: 14px; }
+.tkeys kbd { font-size: 15px; padding: 3px 9px; opacity: .45; }
+.tkeys kbd.on, #testOther kbd.on { opacity: 1; background: var(--c, var(--p1)); transform: translateY(1px); box-shadow: none; }
+.tkeys .pk { font-size: 15px; }
+.testcount { margin: 0; text-align: center; font: 400 20px/1.2 var(--display); letter-spacing: .5px; }
+@media (prefers-reduced-motion: reduce) { .kb.listen { animation: none; } }
 .hint { margin: 0; font-size: 13px; color: #6b5d45; text-align: center; }
+.timer small { display: block; font: 700 9px/1 var(--body); letter-spacing: .4px; text-transform: uppercase; margin: 2px 0 2px; color: #6b5d45; }
+.timer.hot small { color: var(--paper); }
 .timer { font: 400 32px/1 var(--display); background: var(--paper); color: var(--ink); border: 3px solid var(--ink); border-radius: 10px;
   box-shadow: 4px 4px 0 var(--ink); padding: 6px 14px 2px; font-variant-numeric: tabular-nums; min-width: 2.8em; text-align: center; }
 .timer.hot { background: #ff4b3a; color: var(--paper); animation: pulse .5s ease-in-out infinite alternate; }
@@ -123,7 +137,7 @@ kbd { font: 600 12px var(--body); background: var(--paper); color: var(--ink); b
 
 <header>
   <h1>Die <span>Plyš</span></h1>
-  <div class="timer" id="timer">2:00</div>
+  <div class="timer" id="timer"><span id="timeTxt">2:00</span><small id="modeTxt"></small></div>
   <div class="bar" id="bar"></div>
 </header>
 <div class="wrap" id="wrap">
@@ -133,15 +147,27 @@ kbd { font: 600 12px var(--body); background: var(--paper); color: var(--ink); b
       <h2>Jak se hraje</h2>
       <p class="hint" style="margin-top:-6px">Klikni na jméno a přepiš ho. Barvu, kterou už má někdo jiný, vybrat nejde.</p>
       <div class="ctrls" id="ctrls"></div>
+      <div class="diff" id="modeRow"><span>Režim hry</span><div class="seg" id="modeSeg" role="group" aria-label="Režim hry"><button type="button" data-m="hits">Nejvíc zásahů</button><button type="button" data-m="survive">Přežití</button></div></div>
       <div class="diff" id="diffRow"><span>Obtížnost počítače</span><div class="seg" id="diffSeg" role="group" aria-label="Obtížnost počítače"></div></div>
       <ul class="rules">
         <li>Každý má v zásobníku <b>6 kuliček</b>. Když je vystřílí, zásobník se <b>3 sekundy</b> nabíjí. Kolik zbývá, vidíš nad zajícem i nahoře v tabulce.</li>
-        <li>Zásah = <b>1 bod</b>. Trefený hráč se za chvilku objeví jinde a chvíli bliká. Dokud bliká, nedá se trefit.</li>
-        <li>Hra trvá <b>2 minuty</b>. Vyhrává ten, kdo má nejvíc zásahů.</li>
+        <li>Trefený hráč se za chvilku objeví jinde a chvíli bliká. Dokud bliká, nedá se trefit.</li>
+        <li id="modeRule"></li>
         <li>Kteréhokoli zajíce může ovládat <b>počítač</b>. Přepni ho na kartě a vyber obtížnost.</li>
       </ul>
-      <div class="actions"><button class="btn" id="start">Start</button></div>
-      <p class="hint">Hra se přepne na celou obrazovku. Klávesa <kbd>Esc</kbd> hru zastaví a otevře nabídku.</p>
+      <p class="keymsg" id="keyMsg" aria-live="polite"></p>
+      <div class="actions"><button class="btn" id="start">Start</button><button class="btn alt" id="testOpen">Test kláves</button></div>
+      <p class="hint">Hra se přepne na celou obrazovku. Klávesa <kbd>Esc</kbd> hru zastaví a otevře nabídku.<br>Klávesu změníš kliknutím na ni. Když při hře některé klávesy nereagují, zkus je v <b>Testu kláves</b> a přenastav.</p>
+    </div>
+  </div>
+  <div class="overlay" id="tester" hidden>
+    <div class="panel">
+      <h2>Test kláves</h2>
+      <p class="rules" style="display:block">Všichni najednou podržte klávesy, které při hře mačkáte, třeba pohyb šikmo a střelbu. Rozsvítí se jen ty, které klávesnice opravdu pošle. Když některá zhasne nebo se vůbec nerozsvítí, klávesnice tu kombinaci nezvládá. Přenastavte ji na jinou, nejlíp na klávesu v jiné části klávesnice.</p>
+      <div class="pkeys tkeys" id="testRows"></div>
+      <p class="testcount" id="testCount">Zmáčkni nějakou klávesu.</p>
+      <p class="hint" id="testOther"></p>
+      <div class="actions"><button class="btn" id="testBack">Zpět</button></div>
     </div>
   </div>
   <div class="overlay" id="pause" hidden>
@@ -401,10 +427,24 @@ function splat(g, x, y, color, size, dx = 0, dy = 0) {
 /* ---------- state ---------- */
 const css = getComputedStyle(document.documentElement);
 const players = [
-  { ci: 0, species:'zajic', keys:{up:'KeyW',down:'KeyS',left:'KeyA',right:'KeyD',fire:['KeyQ']}, labels:{move:['W','A','S','D'], fire:['Q']} },
-  { ci: 1, species:'zajic', keys:{up:'KeyI',down:'KeyK',left:'KeyJ',right:'KeyL',fire:['KeyU']}, labels:{move:['I','J','K','L'], fire:['U']} },
-  { ci: 2, species:'zajic', keys:{up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight',fire:['Enter','NumpadEnter','Numpad0']}, labels:{move:['↑','←','↓','→'], fire:['Enter','Num 0']} },
+  { ci: 0, species:'zajic', keys:{up:'KeyW',down:'KeyS',left:'KeyA',right:'KeyD',fire:['KeyQ']} },
+  { ci: 1, species:'zajic', keys:{up:'KeyI',down:'KeyK',left:'KeyJ',right:'KeyL',fire:['KeyU']} },
+  { ci: 2, species:'zajic', keys:{up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight',fire:['Enter']} },
 ];
+// keys that can't be bound: Ctrl/Alt/Win combine with other players' keys into browser shortcuts (Ctrl+W closes the tab),
+// Shift pressed 5x opens Windows Sticky Keys, Esc is the pause key
+const BANNED = c => /^(Control|Alt|Meta|Shift|OS)/.test(c) || /^F\d+$/.test(c) || ['Escape', 'Tab', 'CapsLock', 'ContextMenu', 'NumLock'].includes(c);
+function keyLabel(c) {
+  const map = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Space: 'Mezera', Enter: 'Enter', NumpadEnter: 'Num Enter',
+    Backspace: '⌫', Semicolon: 'ů', Quote: '§', BracketLeft: 'ú', BracketRight: ')', Comma: ',', Period: '.', Slash: '-', Minus: '=', Equal: '´',
+    Backslash: '¨', Backquote: ';', IntlBackslash: '\\', Insert: 'Ins', Delete: 'Del', Home: 'Home', End: 'End', PageUp: 'PgUp', PageDown: 'PgDn',
+    NumpadAdd: 'Num +', NumpadSubtract: 'Num −', NumpadMultiply: 'Num *', NumpadDivide: 'Num /', NumpadDecimal: 'Num ,' };
+  if (map[c]) return map[c];
+  if (/^Key[A-Z]$/.test(c)) return c.slice(3);
+  if (/^Digit\d$/.test(c)) return c.slice(5);
+  if (/^Numpad\d$/.test(c)) return 'Num ' + c.slice(6);
+  return c;
+}
 // hand-picked colours that stay distinct from each other and readable on the green meadow
 const PALETTE = [
   { c: '#ff7a1a', n: 'Oranžový' }, { c: '#ff3d9a', n: 'Růžový' }, { c: '#2fa8ff', n: 'Modrý' }, { c: '#ffd23f', n: 'Žlutý' },
@@ -419,12 +459,15 @@ try {
     if (PALETTE[s.ci] && !saved.some((o, j) => j < i && o && o.ci === s.ci)) p.ci = s.ci;
     if (typeof s.name === 'string' && s.name.trim()) { p.name = s.name.trim().slice(0, 16); p.custom = true; }
     if (typeof s.cpu === 'boolean') p.cpu = s.cpu;
+    if (s.keys && ['up','down','left','right','fire'].every(a => typeof s.keys[a] === 'string' && s.keys[a] && !BANNED(s.keys[a])))
+      p.keys = { up: s.keys.up, down: s.keys.down, left: s.keys.left, right: s.keys.right, fire: [s.keys.fire] };
   });
 } catch (e) {}
 function saveSetup() {
   try {
-    localStorage.setItem('dieplys-setup', JSON.stringify(players.map(p => ({ ci: p.ci, name: p.custom ? p.name : '', cpu: !!p.cpu }))));
-    localStorage.setItem('dieplys-diff', difficulty);
+    localStorage.setItem('dieplys-setup', JSON.stringify(players.map(p => ({ ci: p.ci, name: p.custom ? p.name : '', cpu: !!p.cpu,
+      keys: { up: p.keys.up, down: p.keys.down, left: p.keys.left, right: p.keys.right, fire: p.keys.fire[0] } }))));
+    localStorage.setItem('dieplys-diff', difficulty); localStorage.setItem('dieplys-mode', mode);
   } catch (e) {}
 }
 players.forEach(p => {
@@ -520,12 +563,12 @@ function spawn(p) {
     const far = players.every(o => o === p || !o.alive || Math.hypot(o.x - x, o.y - y) > 220);
     if (!hitsWall(x, y, R + 6) && far) { p.x = x; p.y = y; break; }
   }
-  p.alive = true; p.dead = 0; p.cd = 0; p.shield = 1.1; p.pop = 0; p.walk = 0; p.ammo = AMMO; p.reload = 0;
+  p.alive = true; p.dead = 0; p.cd = 0; p.shield = 1.1; p.pop = 0; p.walk = 0; p.ammo = AMMO; p.reload = 0; p.ax = p.x; p.ay = p.y; p.campT = 0;
 }
 function reset() {
   bullets = []; fx = []; puffs = []; bits = []; bubbles = []; timeLeft = MATCH; goT = 0;
   copyLayer(ground, groundBase); copyLayer(obst, obstBase);
-  players.forEach(p => { p.ai = null; p.vx = 0; p.vy = 0; p.score = 0; p.shots = 0; p.deaths = 0; p.dx = 1; p.dy = 0; p.ang = 0; p.alive = false; });
+  players.forEach(p => { p.ai = null; p.vx = 0; p.vy = 0; p.score = 0; p.shots = 0; p.deaths = 0; p.cowards = 0; p.dx = 1; p.dy = 0; p.ang = 0; p.alive = false; });
   players.forEach(p => { spawn(p); p.ang = Math.atan2(H/2 - p.y, W/2 - p.x); p.dx = Math.cos(p.ang); p.dy = Math.sin(p.ang); });
   updateHud(true);
 }
@@ -551,16 +594,18 @@ function buildHud() {
     c.insertAdjacentHTML('beforeend', `<input class="nmin" id="name-${idx}" maxlength="16" spellcheck="false" autocomplete="off" aria-label="Jméno hráče ${idx + 1}">
       <div class="sw" role="group" aria-label="Barva hráče ${idx + 1}">${PALETTE.map((s, i) => `<button type="button" class="swb" data-ci="${i}" style="--s:${s.c}" aria-label="${s.n}" title="${s.n}"></button>`).join('')}</div>
       <div class="mode" role="group" aria-label="Kdo ovládá hráče ${idx + 1}"><button type="button" data-cpu="0">Hráč</button><button type="button" data-cpu="1">Počítač</button></div>
-      <div class="keysbox"><div class="row"><span>pohyb</span>${kbds(p.labels.move)}</div><div class="row"><span>střelba</span>${kbds(p.labels.fire)}</div></div>
+      <div class="keysbox"><div class="row"><span>pohyb</span>${['up','left','down','right'].map(a => `<button type="button" class="kb" data-act="${a}"></button>`).join('')}</div>
+        <div class="row"><span>střelba</span><button type="button" class="kb" data-act="fire"></button></div></div>
       <div class="cpubox">Tohohle zajíce ovládá počítač.</div>`);
     ctrls.append(c);
     const pk = document.createElement('div'); pk.className = 'pk';
-    pk.innerHTML = `<span class="who"><i></i><span></span></span><span class="k">${kbds(p.labels.move)} + ${kbds(p.labels.fire)}</span><span class="kcpu">počítač</span>`;
+    pk.innerHTML = `<span class="who"><i></i><span></span></span><span class="k"></span><span class="kcpu">počítač</span>`;
     document.getElementById('pkeys').append(pk);
     d.insertAdjacentHTML('beforeend', '<span class="badge">PC</span>');
     p.el = { card: d, ctrl: c, pk, sc: d.querySelector('.sc'), dots: [...d.querySelectorAll('.ammo i')], rl: d.querySelector('.rl'), key: '',
       names: [d.querySelector('.nm'), pk.querySelector('.who span')], input: c.querySelector('.nmin'), swb: [...c.querySelectorAll('.swb')],
-      mode: [...c.querySelectorAll('.mode button')] };
+      mode: [...c.querySelectorAll('.mode button')], kb: [...c.querySelectorAll('.kb')], pkk: pk.querySelector('.k') };
+    p.el.kb.forEach(b => b.addEventListener('click', () => startListen(p, b)));
     p.el.mode.forEach(b => b.addEventListener('click', () => { p.cpu = b.dataset.cpu === '1'; refreshMode(); saveSetup(); }));
     p.el.input.value = p.name;
     p.el.input.addEventListener('input', () => {
@@ -577,9 +622,18 @@ function buildHud() {
     }));
     refreshLook(p);
   });
+  refreshKeys();
   document.getElementById('diffSeg').innerHTML = Object.entries(DIFF).map(([k, v]) => `<button type="button" data-d="${k}">${v.label}</button>`).join('');
   document.querySelectorAll('#diffSeg button').forEach(b => b.addEventListener('click', () => { difficulty = b.dataset.d; refreshMode(); saveSetup(); }));
-  refreshNames(); refreshSwatches(); refreshMode();
+  document.querySelectorAll('#modeSeg button').forEach(b => b.addEventListener('click', () => { mode = b.dataset.m; refreshGameMode(); saveSetup(); }));
+  refreshNames(); refreshSwatches(); refreshMode(); refreshGameMode();
+}
+function refreshGameMode() {
+  document.querySelectorAll('#modeSeg button').forEach(b => { const on = b.dataset.m === mode; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  document.getElementById('modeRule').innerHTML = mode === 'survive'
+    ? 'Hra trvá <b>2 minuty</b>. Vyhrává ten, koho trefili <b>nejméněkrát</b>. Kdo se <b>8 sekund</b> nehne z jednoho místa, vysype se z něj vata a počítá se mu to jako zásah.'
+    : 'Hra trvá <b>2 minuty</b>. Vyhrává ten, kdo má <b>nejvíc zásahů</b>.';
+  updateHud(true);
 }
 function refreshMode() {
   for (const p of players) {
@@ -607,32 +661,33 @@ const timerEl = document.getElementById('timer');
 function updateHud(force) {
   for (const p of players) {
     const rl = p.reload > 0 ? p.reload.toFixed(1) : '';
-    const key = `${p.score}|${p.ammo}|${rl}`;
+    const val = mode === 'survive' ? p.deaths : p.score, key = `${val}|${p.ammo}|${rl}`;
     if (!force && key === p.el.key) continue;
-    p.el.key = key; p.el.sc.textContent = p.score;
+    p.el.key = key; p.el.sc.textContent = val;
     p.el.dots.forEach((d, i) => d.classList.toggle('e', i >= p.ammo));
     p.el.rl.textContent = rl ? `nabíjí ${rl} s` : '';
   }
   const s = Math.ceil(timeLeft), tk = s + phase;
   if (force || tk !== timerKey) {
-    timerKey = tk; timerEl.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    timerKey = tk; document.getElementById('modeTxt').textContent = mode === 'survive' ? 'přežití' : 'zásahy'; document.getElementById('timeTxt').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     timerEl.classList.toggle('hot', phase === 'play' && s <= 10);
   }
 }
 function showResults() {
-  const list = [...players].sort((a, b) => b.score - a.score || a.deaths - b.deaths);
+  const surv = mode === 'survive', val = p => surv ? p.deaths : p.score;
+  const list = [...players].sort(surv ? (a, b) => a.deaths - b.deaths || b.score - a.score : (a, b) => b.score - a.score || a.deaths - b.deaths);
   const el = document.getElementById('resList'); el.innerHTML = '';
   let place = 0;
   list.forEach((p, i) => {
-    if (i === 0 || p.score !== list[i-1].score) place = i + 1;
+    if (i === 0 || val(p) !== val(list[i-1])) place = i + 1;
     const acc = p.shots ? Math.round(p.score / p.shots * 100) : 0;
     const r = document.createElement('div'); r.className = 'rrow' + (place === 1 ? ' top' : ''); r.style.setProperty('--c', p.paint);
     r.insertAdjacentHTML('beforeend', `<span class="pl">${place}.</span>`);
     r.append(avatar(p, 52));
-    r.insertAdjacentHTML('beforeend', `<div style="min-width:0"><div class="nm">${esc(p.name)}</div><div class="st">${p.cpu ? `počítač (${DIFF[difficulty].label.toLowerCase()}) · ` : ''}výstřelů ${p.shots} · přesnost ${acc} % · trefen ${p.deaths}×</div></div><div class="pts">${p.score}<small>${p.score === 1 ? 'zásah' : p.score >= 2 && p.score <= 4 ? 'zásahy' : 'zásahů'}</small></div>`);
+    r.insertAdjacentHTML('beforeend', `<div style="min-width:0"><div class="nm">${esc(p.name)}</div><div class="st">${p.cpu ? `počítač (${DIFF[difficulty].label.toLowerCase()}) · ` : ''}${surv ? `zásahů ${p.score} · ` : ''}výstřelů ${p.shots} · přesnost ${acc} % · ${surv ? (p.cowards ? `za schovávání ${p.cowards}×` : 'neschovával se') : `trefen ${p.deaths}×`}</div></div><div class="pts">${val(p)}<small>${surv ? 'trefen' : p.score === 1 ? 'zásah' : p.score >= 2 && p.score <= 4 ? 'zásahy' : 'zásahů'}</small></div>`);
     el.append(r);
   });
-  const tie = list.length > 1 && list[0].score === list[1].score;
+  const tie = list.length > 1 && val(list[0]) === val(list[1]);
   document.getElementById('resTitle').textContent = tie ? 'Konec hry! Remíza!' : `Konec hry! Vyhrává ${list[0].name}!`;
   document.getElementById('results').hidden = false;
   document.getElementById('again').focus();
@@ -681,9 +736,50 @@ function resumeGame() {
 }
 
 /* ---------- input ---------- */
-const gameKeys = new Set(players.flatMap(p => [p.keys.up, p.keys.down, p.keys.left, p.keys.right, ...p.keys.fire]));
+const ACTS = ['up', 'down', 'left', 'right', 'fire'];
+const getKey = (p, a) => a === 'fire' ? p.keys.fire[0] : p.keys[a];
+const setKey = (p, a, c) => { if (a === 'fire') p.keys.fire = [c]; else p.keys[a] = c; };
+const isGameKey = c => players.some(p => ACTS.some(a => a === 'fire' ? p.keys.fire.includes(c) : p.keys[a] === c));
+function refreshKeys() {
+  for (const p of players) {
+    p.el.kb.forEach(b => { if (!b.classList.contains('listen')) b.textContent = keyLabel(getKey(p, b.dataset.act)); });
+    p.el.pkk.innerHTML = kbds(['up','left','down','right'].map(a => keyLabel(p.keys[a]))) + ' + ' + kbds([keyLabel(p.keys.fire[0])]);
+  }
+}
+let listening = null, keyMsgT = 0;
+function keyMsg(t) {
+  const el = document.getElementById('keyMsg'); el.textContent = t; clearTimeout(keyMsgT);
+  if (t) keyMsgT = setTimeout(() => el.textContent = '', 4500);
+}
+function startListen(p, b) {
+  stopListen();
+  listening = { p, a: b.dataset.act, b }; b.classList.add('listen'); b.textContent = 'stiskni…';
+  keyMsg('Zmáčkni novou klávesu. Esc zruší změnu.');
+}
+function stopListen() {
+  if (!listening) return;
+  listening.b.classList.remove('listen'); listening.b.blur(); listening = null; refreshKeys();
+}
+function bindKey(code) {
+  const { p, a } = listening;
+  if (BANNED(code)) { keyMsg('Ctrl, Alt, Shift, Win, Tab ani F1–F12 použít nejde. S ostatními klávesami spouštějí zkratky prohlížeče nebo Windows.'); return; }
+  const old = getKey(p, a);
+  // already used by someone? swap the two keys so nothing ends up doubled
+  for (const o of players) for (const oa of ACTS) if ((o !== p || oa !== a) && getKey(o, oa) === code) {
+    setKey(o, oa, old);
+    keyMsg(`${keyLabel(code)} měl ${o === p ? 'tenhle hráč' : o.name} na jiné akci, klávesy se prohodily.`);
+  }
+  setKey(p, a, code); stopListen(); saveSetup();
+  if (!document.getElementById('keyMsg').textContent.includes('prohodily')) keyMsg('');
+}
+let testMax = 0;
 addEventListener('keydown', e => {
-  if (gameKeys.has(e.code) || e.code === 'Space') e.preventDefault();
+  if (listening) {
+    e.preventDefault(); e.stopPropagation();
+    if (e.code === 'Escape') { stopListen(); keyMsg(''); } else bindKey(e.code);
+    return;
+  }
+  if (isGameKey(e.code) || e.code === 'Space') e.preventDefault();
   if (e.code === 'Escape' && !e.repeat) {
     if (phase === 'play' || phase === 'countdown') pauseGame();
     else if (phase === 'paused') resumeGame();
@@ -693,6 +789,23 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => pressed.delete(e.code));
 addEventListener('blur', () => pressed.clear());
 
+/* ---------- key tester ---------- */
+const testerEl = document.getElementById('tester');
+function openTester() { stopListen(); testMax = 0; pressed.clear(); document.getElementById('help').hidden = true; testerEl.hidden = false; document.getElementById('testBack').focus(); }
+function closeTester() { testerEl.hidden = true; pressed.clear(); document.getElementById('help').hidden = false; }
+let testKey = '';
+function updateTester() {
+  if (testerEl.hidden) return;
+  const key = [...pressed].sort().join('|'); if (key === testKey) return; testKey = key;
+  testMax = Math.max(testMax, pressed.size);
+  const chip = c => `<kbd class="${pressed.has(c) ? 'on' : ''}">${esc(keyLabel(c))}</kbd>`;
+  document.getElementById('testRows').innerHTML = players.map(p =>
+    `<div class="pk" style="--c:${p.paint}"><span class="who"><i></i>${esc(p.name)}</span><span class="k">${['up','left','down','right','fire'].map(a => chip(getKey(p, a))).join('')}</span></div>`).join('');
+  const other = [...pressed].filter(c => !isGameKey(c));
+  document.getElementById('testOther').innerHTML = other.length ? 'Další držené klávesy: ' + other.map(c => `<kbd class="on">${esc(keyLabel(c))}</kbd>`).join(' ') : '';
+  document.getElementById('testCount').textContent = `Klávesnice teď posílá ${pressed.size} ${pressed.size >= 2 && pressed.size <= 4 ? 'klávesy' : pressed.size === 1 ? 'klávesu' : 'kláves'} najednou. Nejvíc zatím: ${testMax}.`;
+}
+
 /* ---------- computer player ---------- */
 // react = how often it re-thinks (s), aimErr = random aim spread (rad), lead = how much it predicts movement,
 // dodge = chance to sidestep an incoming ball, fireGap = extra pause between shots, turn = how fast it turns
@@ -701,7 +814,17 @@ const DIFF = {
   medium: { label: 'Střední', react: .32, aimErr: .17, lead: .5, dodge: .3,  speed: .88, fireGap: .35, turn: 10, range: 560, retreat: true,  smart: true },
   hard:   { label: 'Těžká',   react: .1,  aimErr: .04, lead: 1,  dodge: .9,  speed: 1,   fireGap: 0,   turn: 20, range: 900, retreat: true,  smart: true },
 };
-let difficulty = 'medium';
+let difficulty = 'medium', mode = 'hits';
+const CAMP_R = 110, CAMP_WARN = 5, CAMP_MAX = 8;   // survival mode: staying within 110 px for 8 s counts as a hit
+try { const m = localStorage.getItem('dieplys-mode'); if (m === 'hits' || m === 'survive') mode = m; } catch (e) {}
+const COWARD = ['Já se jen schovával…', 'Tady mě nikdo nenajde… au.', 'Byl jsem na záchodě!', 'Já nekempuju, já taktizuju!', 'Jen jsem si zdřímnul…'];
+function cowardDeath(p) {
+  p.alive = false; p.dead = 0; p.deaths++; p.cowards++;
+  splat(ground.g, p.x, p.y, p.paint, 20); spawnBits(p, 0, -1);
+  fx.push({ x: p.x, y: p.y - 24, t: 0, life: 1.1, text: 'ZBABĚLEC!', color: '#ff4b3a', rot: (Math.random() - .5) * .3 });
+  bubbles = bubbles.filter(b => b.p !== p); bubbles.push({ p, text: COWARD[Math.random() * COWARD.length | 0], t: 0, life: 1.9 });
+  if (!reduceMotion) shake = .18;
+}
 try { const d = localStorage.getItem('dieplys-diff'); if (DIFF[d]) difficulty = d; } catch (e) {}
 
 const CELL = 24, GW = Math.ceil(W / CELL), GH = Math.ceil(H / CELL);
@@ -781,6 +904,7 @@ function aiInput(p, dt) {
       }
     }
   }
+  if (mode === 'survive' && p.campT > 3 && ai.unstickT <= 0) { const a = Math.random() * TAU; ai.ux = Math.cos(a); ai.uy = Math.sin(a); ai.unstickT = .9; }
   const tg = ai.target;
   if (!tg) return { mx: 0, my: 0, fire: false, face: null };
   if (ai.strafeT <= 0) { ai.strafeT = .6 + Math.random() * .9; ai.strafe = Math.random() < .5 ? -1 : 1; }
@@ -848,6 +972,10 @@ function update(dt) {
       p.walk += dt * 14;
     } else p.walk = 0;
     p.vx = (p.x - ox) / dt; p.vy = (p.y - oy) / dt;
+    if (mode === 'survive') {
+      if (Math.hypot(p.x - p.ax, p.y - p.ay) > CAMP_R) { p.ax = p.x; p.ay = p.y; p.campT = 0; }
+      else if ((p.campT += dt) >= CAMP_MAX) { cowardDeath(p); continue; }
+    }
     const target = inp.face != null ? inp.face : Math.atan2(p.dy, p.dx);
     let diff = (target - p.ang + Math.PI * 3) % TAU - Math.PI;
     p.ang += diff * Math.min(1, dt * (p.cpu ? DIFF[difficulty].turn : 20));
@@ -918,6 +1046,8 @@ function draw() {
   for (const p of players) {
     if (!p.alive || phase === 'help' || phase === 'over') continue;
     const y = p.y - 38;
+    if (mode === 'survive' && p.campT > CAMP_WARN)
+      comicText(`HÝBEJ SE! ${Math.ceil(CAMP_MAX - p.campT)}`, p.x, p.y - 60, 19, '#ff4b3a', -.04, 1 + .08 * Math.sin(p.campT * 14));
     if (p.reload > 0) {
       const k = 1 - p.reload / RELOAD;
       circle(ctx, p.x, y, 11); ctx.fillStyle = 'rgba(255,243,212,.92)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = INK; ctx.stroke();
@@ -960,7 +1090,7 @@ function draw() {
 let last = 0;
 function loop(t) {
   const dt = Math.min(.05, (t - last) / 1000); last = t;
-  update(dt); draw(); updateHud(false); requestAnimationFrame(loop);
+  update(dt); draw(); updateHud(false); updateTester(); requestAnimationFrame(loop);
 }
 
 /* ---------- layout ---------- */
@@ -972,7 +1102,9 @@ function fit() {
 new ResizeObserver(fit).observe(wrap); fit();
 
 buildHud(); reset();
-document.getElementById('start').addEventListener('click', startMatch);
+document.getElementById('start').addEventListener('click', () => { stopListen(); startMatch(); });
+document.getElementById('testOpen').addEventListener('click', openTester);
+document.getElementById('testBack').addEventListener('click', closeTester);
 document.getElementById('again').addEventListener('click', showHelp);
 document.getElementById('toHelp').addEventListener('click', startMatch);
 document.getElementById('resume').addEventListener('click', resumeGame);
